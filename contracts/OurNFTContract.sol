@@ -12,10 +12,10 @@ contract OurNFTContract is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     VRFCoordinatorV2Interface COORDINATOR;
 
     
-    uint64 s_subscriptionId;
-    address vrfCoordinator = 0x6168499c0cFfCaCD319c818142124B7A15E857ab;
-    bytes32 keyHash = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
-    uint32 callbackGasLimit = 100000;
+    uint64 subscriptionId;
+    address vrfCoordinator = 0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed;
+    bytes32 keyHash = 0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f;
+    uint32 callbackGasLimit = 200000;
     uint16 requestConfirmations = 3;
     uint32 numWords =  2;
 
@@ -27,6 +27,7 @@ contract OurNFTContract is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
         uint8 power;
         uint8 specialPower;
         uint16 cooldown;
+        uint256 rarity;
     }
 
     mapping(uint256 => string) requestToCharacterName;
@@ -37,54 +38,82 @@ contract OurNFTContract is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
 
     mapping(uint256 => NFTStat) private characterRegistry;
 
+    event ReceivedRandomness( uint256 reqId, uint256 n1, uint256 n2);
+    event RequestedRandomness( uint256 reqId, address invoker, string name);
+
     constructor(uint64 _subscriptionId) ERC721("OurNFTContract", "ONC") VRFConsumerBaseV2(vrfCoordinator) {
         COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
-        s_subscriptionId = _subscriptionId;
+        subscriptionId = _subscriptionId;
     }
 
-    // function safeMint(address to, string memory uri) public onlyOwner {
-    //     uint256 tokenId = _tokenIdCounter.current();
-    //     _tokenIdCounter.increment();
-    //     _safeMint(to, tokenId);
-    //     _setTokenURI(tokenId, uri);
-    // }
-
     // Assumes the subscription is funded sufficiently.
-    function safeMint(string calldata name) public {
+    function safeMint(string calldata name) public returns(uint256 requestId) {
         // Will revert if subscription is not set and funded.
-        uint256 requestId = COORDINATOR.requestRandomWords(
+        requestId = COORDINATOR.requestRandomWords(
         keyHash,
-        s_subscriptionId,
+        subscriptionId,
         requestConfirmations,
         callbackGasLimit,
         numWords
         );
         requestToCharacterName[requestId] = name;
         requestToSender[requestId] = msg.sender;
+        emit RequestedRandomness(requestId, msg.sender, name);
     }
     
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] memory randomWords
     ) internal override {
+        uint256 w1 = randomWords[0];
+        uint256 w2 = randomWords[1];
+        uint8 p = uint8(w2 % 10);
+        uint8 sp = uint8(w2 % 100 /10);
+        uint16 c = uint16(w2 % 1000 / 100);
+
 
         address sender = requestToSender[requestId];
+        string memory name = requestToCharacterName[requestId];
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(sender, tokenId);
+
         characterRegistry[tokenId] = NFTStat(
             true,
             sender,
             sender,
-            requestToCharacterName[requestId],
-            0,
-            0,
-            0
-            );
-
-        // s_randomWords = randomWords;
+            name,
+            p,
+            sp,
+            c,
+            w1 % 10000
+        );
+        emit ReceivedRandomness(requestId, w1, w2);
+            
     }
     // The following functions are overrides required by Solidity.
+
+    function getCharacter(uint256 tokenId)
+    public
+    view
+    returns (
+        address,
+        address,
+        string memory,
+        uint8,
+        uint8,
+        uint16
+    ) {
+        require(characterRegistry[tokenId].exists == true, "Character does not Exist.");
+        return (
+            characterRegistry[tokenId].currentOwner,
+            characterRegistry[tokenId].originalOwner,
+            characterRegistry[tokenId].characterName,
+            characterRegistry[tokenId].power,
+            characterRegistry[tokenId].specialPower,
+            characterRegistry[tokenId].cooldown
+        );
+    }
 
     function _burn(uint256 tokenId) internal override(ERC721, ERC721URIStorage) {
         super._burn(tokenId);
@@ -106,6 +135,14 @@ contract OurNFTContract is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     ) public virtual override {
         super.safeTransferFrom(from, to, tokenId, "");
         characterRegistry[tokenId].currentOwner = to;
+    }
+
+    function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: transfer caller is not owner nor approved"
+        );
+        _setTokenURI(tokenId, _tokenURI);
     }
 
     function tokenURI(uint256 tokenId)
