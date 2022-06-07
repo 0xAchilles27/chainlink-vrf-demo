@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { BigNumber } = require("ethers");
-const { ethers, deployments } = require("hardhat");
+const { ethers } = require("hardhat");
 
 describe("OurNFTContract", function () {
   let owner;
@@ -10,10 +10,8 @@ describe("OurNFTContract", function () {
     [owner] = await ethers.getSigners();
     let ourNFTContract = await ethers.getContractFactory("OurNFTContract");
     let vrfCoordinatorV2Mock = await ethers.getContractFactory("VRFCoordinatorV2Mock");
-    // let vrfMock = await ethers.getContractFactory("VRFMock");
 
     hardhatVrfCoordinatorV2Mock = await vrfCoordinatorV2Mock.deploy(0, 0);
-    // hardhatVrfCoordinatorV2Mock = await vrfMock.deploy();
 
     await hardhatVrfCoordinatorV2Mock.createSubscription();
 
