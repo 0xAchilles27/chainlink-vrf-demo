@@ -13,7 +13,6 @@ contract OurNFTContract is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
 
     
     uint64 subscriptionId;
-    address vrfCoordinator = 0x7a1BaC17Ccc5b313516C5E16fb24f7659aA5ebed;
     bytes32 keyHash = 0x4b09e658ed251bcafeebbc69400383d49f344ace09b9576fe248bb02c003fe9f;
     uint32 callbackGasLimit = 200000;
     uint16 requestConfirmations = 3;
@@ -41,8 +40,8 @@ contract OurNFTContract is ERC721, ERC721URIStorage, VRFConsumerBaseV2 {
     event ReceivedRandomness( uint256 reqId, uint256 n1, uint256 n2);
     event RequestedRandomness( uint256 reqId, address invoker, string name);
 
-    constructor(uint64 _subscriptionId) ERC721("OurNFTContract", "ONC") VRFConsumerBaseV2(vrfCoordinator) {
-        COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+    constructor(uint64 _subscriptionId, address _vrfCoordinator) ERC721("OurNFTContract", "ONC") VRFConsumerBaseV2(_vrfCoordinator) {
+        COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
         subscriptionId = _subscriptionId;
     }
 
